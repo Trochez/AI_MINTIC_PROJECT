@@ -61,8 +61,8 @@ transform = transforms.Compose([
 ])
 
 # Define directories
-images_dir = 'project_git/Rock Paper Scissors SXSW.v14i.yolov8/train/images'
-labels_dir = 'project_git/Rock Paper Scissors SXSW.v14i.yolov8/train/labels'
+images_dir = './Rock Paper Scissors SXSW.v14i.yolov8/train/images'
+labels_dir = './Rock Paper Scissors SXSW.v14i.yolov8/train/labels'
 
 # Create dataset and dataloader
 dataset = RockPaperScissorsDataset(images_dir=images_dir, labels_dir=labels_dir, transform=transform)
@@ -131,7 +131,7 @@ model.eval()  # Set the model to evaluation mode
 
 
 # Load the image
-image_path = 'project_git/2024-08-10-204059.jpg'
+image_path = './2024-08-10-204059.jpg'
 image = Image.open(image_path).convert('RGB')
 
 # Apply the transformations
