@@ -1,24 +1,71 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
-  <head>
+<head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Rock Paper Scissors Prediction</title>
-  </head>
-  <body>
-    <h1>Upload a picture to predict Rock, Paper, or Scissors</h1>
-    <form action="/" method="POST" enctype="multipart/form-data">
-      <input type="file" name="file">
-      <input type="submit" value="Upload and Predict">
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+        }
+        #uploadForm {
+            margin-bottom: 20px;
+        }
+        #results {
+            margin-top: 20px;
+        }
+        .result-item {
+            margin-bottom: 15px;
+        }
+        img {
+            max-width: 200px;
+            display: block;
+        }
+    </style>
+</head>
+<body>
+    <h1>Upload a Picture for Rock Paper Scissors Prediction</h1>
+    <form id="uploadForm">
+        <input type="file" id="fileInput" accept="image/*">
+        <button type="button" onclick="uploadImage()">Upload and Predict</button>
     </form>
-    {% with messages = get_flashed_messages() %}
-      {% if messages %}
-        <ul>
-          {% for message in messages %}
-            <li>{{ message }}</li>
-          {% endfor %}
-        </ul>
-      {% endif %}
-    {% endwith %}
-  </body>
+    <div id="results"></div>
+
+    <script>
+        function uploadImage() {
+            let formData = new FormData();
+            let fileInput = document.getElementById('fileInput');
+            if (fileInput.files.length === 0) {
+                alert("Please select a file first.");
+                return;
+            }
+
+            formData.append('file', fileInput.files[0]);
+
+            fetch('/predict', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.error) {
+                    alert(data.error);
+                } else {
+                    displayResult(data.prediction);
+                }
+            })
+            .catch(error => console.error('Error:', error));
+        }
+
+        function displayResult(prediction) {
+            let resultsDiv = document.getElementById('results');
+            let resultItem = document.createElement('div');
+            resultItem.classList.add('result-item');
+            resultItem.innerHTML = `
+                <p>Prediction: <strong>${prediction}</strong></p>
+            `;
+            resultsDiv.appendChild(resultItem);
+        }
+    </script>
+</body>
 </html>

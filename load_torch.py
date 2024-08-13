@@ -1,46 +1,90 @@
 import torch
 from torchvision import transforms
 from PIL import Image
+import torch.nn as nn
+import zlib
+import pickle
+import torch.quantization
+import torch.nn.utils.prune as prune
 
-# Assuming the model architecture matches the one used during training
-class MyModel(torch.nn.Module):
-    def __init__(self):
-        super(MyModel, self).__init__()
-        # Define layers here (should match the saved model's architecture)
-        self.conv1 = torch.nn.Conv2d(3, 16, 3, 1)
-        self.fc1 = torch.nn.Linear(16*26*26, 128)
-        self.fc2 = torch.nn.Linear(128, 3)
 
-    def forward(self, x):
-        x = torch.relu(self.conv1(x))
-        x = torch.flatten(x, 1)
-        x = torch.relu(self.fc1(x))
-        x = self.fc2(x)
-        return x
 
-# Load the model
-#model = MyModel()
-model = torch.load('./game_hands.pt')
-model.eval()  # Set the model to evaluation mode
 
-# Assuming you have an image to predict
-image_path = './2024-08-10-204059.jpg'
-image = Image.open(image_path)
 
-# Preprocessing the image (ensure it matches the model's training preprocessing)
-preprocess = transforms.Compose([
-    transforms.Resize((28, 28)),  # Resize to match the input size
-    transforms.ToTensor(),        # Convert image to Tensor
-    transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])  # Normalization
+transform = transforms.Compose([
+    transforms.Resize((640, 640)),  # Resize images to 640x640 pixels
+    transforms.ToTensor(),
+    transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
 ])
 
-# Apply preprocessing
-image_tensor = preprocess(image).unsqueeze(0)  # Add batch dimension
+class RockPaperScissorsModel(nn.Module):
+    def __init__(self):
+        super(RockPaperScissorsModel, self).__init__()
+        self.conv1 = nn.Conv2d(3, 16, 3, 1)
+        self.conv2 = nn.Conv2d(16, 32, 3, 1)
+        self.conv3 = nn.Conv2d(32, 64, 3, 1)
+        self.pool = nn.MaxPool2d(2, 2)
 
-# Model inference
+        # Dummy tensor to calculate the size after convolutions and pooling
+        x = torch.randn(1, 3, 640, 640)
+        x = self.pool(nn.functional.relu(self.conv1(x)))
+        x = self.pool(nn.functional.relu(self.conv2(x)))
+        x = self.pool(nn.functional.relu(self.conv3(x)))
+        self.flattened_size = x.view(-1).size(0)
+
+        self.fc1 = nn.Linear(self.flattened_size, 128)
+        self.fc2 = nn.Linear(128, 3)  # Output for 3 classes
+
+    def forward(self, x):
+        x = self.pool(nn.functional.relu(self.conv1(x)))
+        x = self.pool(nn.functional.relu(self.conv2(x)))
+        x = self.pool(nn.functional.relu(self.conv3(x)))
+        x = x.view(-1, self.flattened_size)
+        x = nn.functional.relu(self.fc1(x))
+        x = self.fc2(x)
+        return x
+    
+# Step 1: Initialize the model
+model = RockPaperScissorsModel()
+
+# Step 2: Apply quantization to the model
+model = torch.quantization.quantize_dynamic(model, {nn.Linear}, dtype=torch.qint8)
+
+# Step 3: Reapply pruning to the same layers
+for name, module in model.named_modules():
+    if isinstance(module, nn.Conv2d) or isinstance(module, nn.Linear):
+        prune.l1_unstructured(module, name='weight', amount=0.2)  # Adjust amount to match training
+
+# Step 4: Load and decompress the state dictionary
+with open('compressed_model.pt', 'rb') as f:
+    compressed_state_dict = f.read()
+
+state_dict = pickle.loads(zlib.decompress(compressed_state_dict))
+
+# Step 5: Load the state dictionary into the model
+model.load_state_dict(state_dict)
+
+# Step 6: Set the model to evaluation mode
+model.eval()
+
+
+# Load the image
+image_path = './2024-08-10-204059.jpg'
+image = Image.open(image_path).convert('RGB')
+
+# Apply the transformations
+image_tensor = transform(image).unsqueeze(0)  # Add batch dimension
+
+# Predict the class
 with torch.no_grad():
     output = model(image_tensor)
     prediction = torch.argmax(output, dim=1)
 
-# Print the prediction
-print(f'Predicted class: {prediction.item()}')
+# Convert prediction to class label
+label_mapping = {0: 'rock', 1: 'paper', 2: 'scissors'}
+predicted_class = label_mapping[prediction.item()]
+
+print(f'Predicted class: {predicted_class}')
+
+
+
