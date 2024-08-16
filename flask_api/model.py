@@ -54,7 +54,7 @@ for name, module in model.named_modules():
         prune.l1_unstructured(module, name='weight', amount=0.2)  # Adjust amount to match training
 
 # Step 4: Load and decompress the state dictionary
-with open('compressed_model.pt', 'rb') as f:
+with open('compressed_model_2.0.pt', 'rb') as f:
     compressed_state_dict = f.read()
 
 state_dict = pickle.loads(zlib.decompress(compressed_state_dict))

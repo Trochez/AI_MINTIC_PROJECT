@@ -144,7 +144,7 @@ with torch.no_grad():
     prediction = torch.argmax(output, dim=1)
 
 # Convert prediction to class label
-label_mapping = {0: 'rock', 1: 'paper', 2: 'scissors'}
+label_mapping = {0: 'paper', 1: 'rock', 2: 'scissors'}
 predicted_class = label_mapping[prediction.item()]
 
 print(f'Predicted class: {predicted_class}')
